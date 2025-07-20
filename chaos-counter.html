@@ -24,6 +24,17 @@
             border-radius: 8px;
             background: #2a2a2a;
             min-width: 200px;
+            position: relative;
+        }
+        
+        .node.child::before {
+            content: "↖";
+            position: absolute;
+            left: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: #666;
         }
         
         .node-header {
@@ -156,6 +167,17 @@
 </head>
 <body>
     <h1>CRDT Chaos Counter Visualizer</h1>
+    
+    <div style="background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-family: monospace;">
+        <strong>Network Topology:</strong> 
+        <span style="color: #4fc3f7;">A</span> ↔ 
+        <span style="color: #81c784;">B</span> ↔ 
+        <span style="color: #ff9800;">C</span> → 
+        <span style="color: #e91e63;">D</span>, 
+        <span style="color: #9c27b0;">E</span>
+        <br>
+        <small style="color: #999;">D and E can only communicate through C</small>
+    </div>
     
     <div class="chaos-controls">
         <div class="control-section">
@@ -335,9 +357,18 @@
                 container.appendChild(node.element);
             }
             
-            // Style D and E differently as child nodes
+            // Style D and E as child nodes with visual indicators
             nodes.D.element.style.marginLeft = '50px';
             nodes.E.element.style.marginLeft = '50px';
+            nodes.D.element.classList.add('child');
+            nodes.E.element.classList.add('child');
+            
+            // Add topology info to node headers
+            nodes.A.element.querySelector('.node-header').innerHTML = 'Node A <span style="font-size:12px;color:#666;">(connects to B,C)</span>';
+            nodes.B.element.querySelector('.node-header').innerHTML = 'Node B <span style="font-size:12px;color:#666;">(connects to A,C)</span>';
+            nodes.C.element.querySelector('.node-header').innerHTML = 'Node C <span style="font-size:12px;color:#666;">(hub: A,B,D,E)</span>';
+            nodes.D.element.querySelector('.node-header').innerHTML = 'Node D <span style="font-size:12px;color:#666;">(child of C)</span>';
+            nodes.E.element.querySelector('.node-header').innerHTML = 'Node E <span style="font-size:12px;color:#666;">(child of C)</span>';
         }
         
         function log(message, type = 'info') {
