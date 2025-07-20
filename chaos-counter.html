@@ -177,7 +177,7 @@
             </div>
             <div class="partition-controls">
                 <h4>Network Partitions</h4>
-                <div class="partition-grid">
+                <div class="partition-grid" style="grid-template-columns: repeat(3, 1fr);">
                     <div class="partition-cell">
                         <input type="checkbox" id="partitionA" onchange="updatePartitions()">
                         <label for="partitionA">Isolate Node A</label>
@@ -189,6 +189,14 @@
                     <div class="partition-cell">
                         <input type="checkbox" id="partitionC" onchange="updatePartitions()">
                         <label for="partitionC">Isolate Node C</label>
+                    </div>
+                    <div class="partition-cell">
+                        <input type="checkbox" id="partitionD" onchange="updatePartitions()">
+                        <label for="partitionD">Isolate Node D</label>
+                    </div>
+                    <div class="partition-cell">
+                        <input type="checkbox" id="partitionE" onchange="updatePartitions()">
+                        <label for="partitionE">Isolate Node E</label>
                     </div>
                 </div>
             </div>
@@ -297,25 +305,39 @@
         }
         
         const nodes = {};
-        const nodeColors = ['#4fc3f7', '#81c784', '#ff9800', '#e91e63'];
+        const nodeColors = ['#4fc3f7', '#81c784', '#ff9800', '#e91e63', '#9c27b0'];
         let operationId = 0;
         let autoIncrementIntervals = {};
         let autoIncrementRunning = false;
-        const partitions = { A: false, B: false, C: false };
+        const partitions = { A: false, B: false, C: false, D: false, E: false };
         let chaosMonkeyInterval = null;
         
+        // Define network topology - who can talk to whom
+        const networkTopology = {
+            A: ['B', 'C'],
+            B: ['A', 'C'],
+            C: ['A', 'B', 'D', 'E'],
+            D: ['C'],
+            E: ['C']
+        };
+        
         // Graph data
-        const graphHistory = { A: [], B: [], C: [] };
+        const graphHistory = { A: [], B: [], C: [], D: [], E: [] };
         const maxGraphPoints = 100;
         let graphInterval;
         
         function createNodes() {
             const container = document.getElementById('nodes');
-            for (let i = 0; i < 3; i++) {
+            // Create all 5 nodes
+            for (let i = 0; i < 5; i++) {
                 const node = new Node(String.fromCharCode(65 + i), nodeColors[i]);
                 nodes[node.id] = node;
                 container.appendChild(node.element);
             }
+            
+            // Style D and E differently as child nodes
+            nodes.D.element.style.marginLeft = '50px';
+            nodes.E.element.style.marginLeft = '50px';
         }
         
         function log(message, type = 'info') {
@@ -351,9 +373,9 @@
                 return;
             }
             
-            Object.keys(nodes).forEach(targetId => {
-                if (targetId === sourceId) return;
-                
+            // Only propagate to nodes that are connected in the topology
+            const connectedNodes = networkTopology[sourceId];
+            connectedNodes.forEach(targetId => {
                 // Check if target is partitioned
                 if (partitions[targetId]) {
                     log(`Node ${targetId} is partitioned - cannot receive from ${sourceId}`, 'drop');
@@ -472,9 +494,9 @@
             document.getElementById('dupRateValue').textContent = '0%';
             
             // Reset partitions
-            document.getElementById('partitionA').checked = false;
-            document.getElementById('partitionB').checked = false;
-            document.getElementById('partitionC').checked = false;
+            Object.keys(partitions).forEach(nodeId => {
+                document.getElementById(`partition${nodeId}`).checked = false;
+            });
             updatePartitions();
             
             // Clear graph history
@@ -486,11 +508,9 @@
         }
         
         function updatePartitions() {
-            partitions.A = document.getElementById('partitionA').checked;
-            partitions.B = document.getElementById('partitionB').checked;
-            partitions.C = document.getElementById('partitionC').checked;
-            
-            Object.keys(nodes).forEach(nodeId => {
+            Object.keys(partitions).forEach(nodeId => {
+                partitions[nodeId] = document.getElementById(`partition${nodeId}`).checked;
+                
                 if (partitions[nodeId]) {
                     nodes[nodeId].element.classList.add('partitioned');
                     log(`Node ${nodeId} is now partitioned from the network`);
@@ -621,8 +641,8 @@
                     document.getElementById('dupRateValue').textContent = dupRate + '%';
                     
                     // Randomly partition nodes (30% chance each)
-                    const nodes = ['A', 'B', 'C'];
-                    nodes.forEach(node => {
+                    const nodeList = ['A', 'B', 'C', 'D', 'E'];
+                    nodeList.forEach(node => {
                         const shouldPartition = Math.random() < 0.3;
                         document.getElementById(`partition${node}`).checked = shouldPartition;
                     });
