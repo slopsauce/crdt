@@ -4,7 +4,7 @@ An interactive visualization tool for exploring Conflict-free Replicated Data Ty
 
 ## Live Demo
 
-Visit the live demo at: [https://YOUR-USERNAME.github.io/crdt/](https://YOUR-USERNAME.github.io/crdt/)
+Visit the live demo at: [https://slopsauce.github.io/crdt/](https://slopsauce.github.io/crdt/)
 
 ## Features
 
