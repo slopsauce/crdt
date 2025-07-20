@@ -324,6 +324,12 @@
             entry.className = `log-entry ${type}`;
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             logDiv.appendChild(entry);
+            
+            // Keep only the last 100 log entries to prevent memory bloat
+            while (logDiv.children.length > 100) {
+                logDiv.removeChild(logDiv.firstChild);
+            }
+            
             logDiv.scrollTop = logDiv.scrollHeight;
         }
         
