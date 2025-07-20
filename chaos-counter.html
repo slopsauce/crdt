@@ -231,6 +231,18 @@
                 <input type="range" id="autoInterval" min="100" max="3000" value="1000">
                 <span id="autoIntervalValue">1000ms</span>
             </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #555;">
+                <h4>🗣️ Gossip Protocol</h4>
+                <button id="toggleGossip" onclick="toggleGossip()">Enable Gossip Mode</button>
+                <div style="margin-top: 10px;">
+                    <label>Gossip Interval (ms):</label>
+                    <input type="range" id="gossipInterval" min="1000" max="10000" value="3000">
+                    <span id="gossipIntervalValue">3000ms</span>
+                </div>
+                <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                    Nodes randomly sync with peers, bypassing topology
+                </div>
+            </div>
             <div style="margin-top: 20px;">
                 <button onclick="resetAll()" style="background: #f44336;">Reset All</button>
             </div>
@@ -333,6 +345,8 @@
         let autoIncrementRunning = false;
         const partitions = { A: false, B: false, C: false, D: false, E: false };
         let chaosMonkeyInterval = null;
+        let gossipIntervals = {};
+        let gossipRunning = false;
         
         // Define network topology - who can talk to whom
         const networkTopology = {
@@ -505,6 +519,15 @@
                 chaosMonkeyInterval = null;
                 document.getElementById('toggleChaosMonkey').textContent = '🐵 Unleash Chaos Monkey';
                 document.getElementById('toggleChaosMonkey').style.background = '#9c27b0';
+            }
+            
+            // Stop gossip if running
+            if (gossipRunning) {
+                Object.values(gossipIntervals).forEach(interval => clearTimeout(interval));
+                gossipIntervals = {};
+                gossipRunning = false;
+                document.getElementById('toggleGossip').textContent = 'Enable Gossip Mode';
+                document.getElementById('toggleGossip').style.background = '#4fc3f7';
             }
             
             // Reset all nodes
@@ -709,11 +732,79 @@
             }
         }
         
+        function gossipSync(sourceId) {
+            if (partitions[sourceId]) {
+                return; // Partitioned nodes can't gossip
+            }
+            
+            // Get all other non-partitioned nodes
+            const availableNodes = Object.keys(nodes).filter(id => 
+                id !== sourceId && !partitions[id]
+            );
+            
+            if (availableNodes.length === 0) {
+                return; // No one to gossip with
+            }
+            
+            // Pick random target
+            const targetId = availableNodes[Math.floor(Math.random() * availableNodes.length)];
+            
+            // Exchange states (bi-directional sync)
+            const sourceState = nodes[sourceId].counter.clone();
+            const targetState = nodes[targetId].counter.clone();
+            
+            log(`🗣️ GOSSIP: ${sourceId} ↔ ${targetId} exchanging states`, 'delay');
+            
+            // Both nodes merge each other's state
+            nodes[sourceId].receiveState(targetState);
+            nodes[targetId].receiveState(sourceState);
+        }
+        
+        function toggleGossip() {
+            const button = document.getElementById('toggleGossip');
+            
+            if (gossipRunning) {
+                // Stop gossip
+                Object.values(gossipIntervals).forEach(interval => clearInterval(interval));
+                gossipIntervals = {};
+                gossipRunning = false;
+                button.textContent = 'Enable Gossip Mode';
+                button.style.background = '#4fc3f7';
+                log('🗣️ Gossip protocol disabled', 'success');
+            } else {
+                // Start gossip
+                const interval = parseInt(document.getElementById('gossipInterval').value);
+                gossipRunning = true;
+                button.textContent = 'Disable Gossip Mode';
+                button.style.background = '#ff9800';
+                log(`🗣️ Gossip protocol enabled! Nodes will randomly sync every ${interval}ms`, 'success');
+                
+                // Each node gossips independently with random intervals
+                Object.keys(nodes).forEach((nodeId, index) => {
+                    const scheduleNextGossip = () => {
+                        const delay = interval + (Math.random() - 0.5) * interval * 0.4; // ±20% variance
+                        gossipIntervals[nodeId] = setTimeout(() => {
+                            if (gossipRunning) {
+                                gossipSync(nodeId);
+                                scheduleNextGossip();
+                            }
+                        }, delay);
+                    };
+                    
+                    // Stagger initial gossip to avoid synchronized storms
+                    setTimeout(() => {
+                        scheduleNextGossip();
+                    }, Math.random() * interval);
+                });
+            }
+        }
+        
         window.incrementNode = incrementNode;
         window.toggleAutoIncrement = toggleAutoIncrement;
         window.resetAll = resetAll;
         window.updatePartitions = updatePartitions;
         window.toggleChaosMonkey = toggleChaosMonkey;
+        window.toggleGossip = toggleGossip;
         
         document.getElementById('dropRate').addEventListener('input', (e) => {
             document.getElementById('dropRateValue').textContent = e.target.value + '%';
@@ -733,6 +824,15 @@
             if (autoIncrementRunning) {
                 toggleAutoIncrement(); // Stop
                 toggleAutoIncrement(); // Start with new interval
+            }
+        });
+        
+        document.getElementById('gossipInterval').addEventListener('input', (e) => {
+            document.getElementById('gossipIntervalValue').textContent = e.target.value + 'ms';
+            // If running, restart with new interval
+            if (gossipRunning) {
+                toggleGossip(); // Stop
+                toggleGossip(); // Start with new interval
             }
         });
         
