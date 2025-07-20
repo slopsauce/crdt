@@ -204,6 +204,9 @@
             <div style="margin-top: 20px;">
                 <button onclick="resetAll()" style="background: #f44336;">Reset All</button>
             </div>
+            <div style="margin-top: 10px;">
+                <button id="toggleChaosMonkey" onclick="toggleChaosMonkey()" style="background: #9c27b0;">🐵 Unleash Chaos Monkey</button>
+            </div>
         </div>
     </div>
     
@@ -299,6 +302,7 @@
         let autoIncrementIntervals = {};
         let autoIncrementRunning = false;
         const partitions = { A: false, B: false, C: false };
+        let chaosMonkeyInterval = null;
         
         // Graph data
         const graphHistory = { A: [], B: [], C: [] };
@@ -436,6 +440,14 @@
                 document.getElementById('toggleAuto').textContent = 'Start Auto-Increment';
             }
             
+            // Stop chaos monkey if running
+            if (chaosMonkeyInterval) {
+                clearTimeout(chaosMonkeyInterval);
+                chaosMonkeyInterval = null;
+                document.getElementById('toggleChaosMonkey').textContent = '🐵 Unleash Chaos Monkey';
+                document.getElementById('toggleChaosMonkey').style.background = '#9c27b0';
+            }
+            
             // Reset all nodes
             Object.keys(nodes).forEach(nodeId => {
                 nodes[nodeId].counter = new GCounter(nodeId);
@@ -570,10 +582,81 @@
             ctx.fillText(allEqual ? 'CONVERGED' : 'DIVERGED', width - 100, 20);
         }
         
+        function toggleChaosMonkey() {
+            const button = document.getElementById('toggleChaosMonkey');
+            
+            if (chaosMonkeyInterval) {
+                // Stop the chaos
+                clearInterval(chaosMonkeyInterval);
+                chaosMonkeyInterval = null;
+                button.textContent = '🐵 Unleash Chaos Monkey';
+                button.style.background = '#9c27b0';
+                log('Chaos Monkey has been caged! 🔒', 'success');
+            } else {
+                // UNLEASH THE CHAOS!
+                button.textContent = '🙈 Stop the Madness!';
+                button.style.background = '#e91e63';
+                log('CHAOS MONKEY UNLEASHED! 🐵💥 Randomizing all parameters every 2-5 seconds!', 'drop');
+                
+                const randomizeChaos = () => {
+                    // Random drop rate (0-100%)
+                    const dropRate = Math.floor(Math.random() * 101);
+                    document.getElementById('dropRate').value = dropRate;
+                    document.getElementById('dropRateValue').textContent = dropRate + '%';
+                    
+                    // Random delay (0-5000ms)
+                    const maxDelay = Math.floor(Math.random() * 5001);
+                    document.getElementById('maxDelay').value = maxDelay;
+                    document.getElementById('maxDelayValue').textContent = maxDelay + 'ms';
+                    
+                    // Random duplicate rate (0-100%)
+                    const dupRate = Math.floor(Math.random() * 101);
+                    document.getElementById('dupRate').value = dupRate;
+                    document.getElementById('dupRateValue').textContent = dupRate + '%';
+                    
+                    // Randomly partition nodes (30% chance each)
+                    const nodes = ['A', 'B', 'C'];
+                    nodes.forEach(node => {
+                        const shouldPartition = Math.random() < 0.3;
+                        document.getElementById(`partition${node}`).checked = shouldPartition;
+                    });
+                    updatePartitions();
+                    
+                    // Random auto-increment interval if running
+                    if (autoIncrementRunning) {
+                        const interval = Math.floor(Math.random() * 2900) + 100;
+                        document.getElementById('autoInterval').value = interval;
+                        document.getElementById('autoIntervalValue').textContent = interval + 'ms';
+                        // Restart with new interval
+                        toggleAutoIncrement();
+                        toggleAutoIncrement();
+                    }
+                    
+                    log(`🐵 CHAOS CHANGE: Drop=${dropRate}%, Delay=${maxDelay}ms, Dup=${dupRate}%`, 'delay');
+                };
+                
+                // Initial chaos
+                randomizeChaos();
+                
+                // Keep changing chaos every 2-5 seconds
+                const scheduleNextChaos = () => {
+                    const delay = Math.random() * 3000 + 2000; // 2-5 seconds
+                    chaosMonkeyInterval = setTimeout(() => {
+                        if (chaosMonkeyInterval) {
+                            randomizeChaos();
+                            scheduleNextChaos();
+                        }
+                    }, delay);
+                };
+                scheduleNextChaos();
+            }
+        }
+        
         window.incrementNode = incrementNode;
         window.toggleAutoIncrement = toggleAutoIncrement;
         window.resetAll = resetAll;
         window.updatePartitions = updatePartitions;
+        window.toggleChaosMonkey = toggleChaosMonkey;
         
         document.getElementById('dropRate').addEventListener('input', (e) => {
             document.getElementById('dropRateValue').textContent = e.target.value + '%';
